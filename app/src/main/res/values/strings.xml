@@ -1,0 +1,19 @@
+<resources>
+    <string name="app_name">MDA</string>
+    <string name="content_description">Button to pause readings</string>
+    <string name="activityTransitionsDisabled">MDA is no longer tracking your activity</string>
+    <string name="errorDisablingActivityTransitions">There was an error disabling activity transitions, please try again.</string>
+    <string name="errorEnablingActivityTransitions">There was an error enabling activity transition, please try again.</string>
+    <string name="activityTransitionsEnabled">Activity Transitions now enabled</string>
+    <string-array name="actions_to_record">
+        <!--Remaining, we could do 'jumping' though.-->
+        <item>Running</item>
+        <!--Done-->
+        <item>Falling</item>
+        <item>Resting</item>
+        <item>Walking</item>
+        <item>Ascending the Stairs</item>
+        <item>Descending the Stairs</item>
+        <!--Done-->
+    </string-array>
+</resources>

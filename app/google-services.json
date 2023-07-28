@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "412658653955",
+    "project_id": "mda-app-6ecde",
+    "storage_bucket": "mda-app-6ecde.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:412658653955:android:b1bf0b4eaf56da0b24e736",
+        "android_client_info": {
+          "package_name": "com.theseuntaylor.mda"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "412658653955-v1pkqvepdnrcspfrvgi7qa68fjgi6sq3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7uoOJ_TEtmU2_aKmVukpyUhlAdfgyaUY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "412658653955-v1pkqvepdnrcspfrvgi7qa68fjgi6sq3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
