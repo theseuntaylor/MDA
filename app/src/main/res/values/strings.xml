@@ -5,6 +5,12 @@
     <string name="errorDisablingActivityTransitions">There was an error disabling activity transitions, please try again.</string>
     <string name="errorEnablingActivityTransitions">There was an error enabling activity transition, please try again.</string>
     <string name="activityTransitionsEnabled">Activity Transitions now enabled</string>
+    <string name="set_up_personal_information">Set up Personal Information</string>
+    <string name="set_up_a_trusted_contact_information">Set Up a Trusted Contact Information</string>
+    <string name="save_user_information">Save User Information</string>
+    <string name="please_note_that_you_cannot_change_your_information_here_you_have_to_delete_it_in_the_settings_page">Please note that you cannot change your information here! You have to delete it in the settings page.</string>
+    <string name="john_doe">Your name: John Doe</string>
+    <string name="_87">Your age: 87</string>
     <string-array name="actions_to_record">
         <!--Remaining, we could do 'jumping' though.-->
         <item>Running</item>
@@ -16,4 +22,14 @@
         <item>Descending the Stairs</item>
         <!--Done-->
     </string-array>
+
+    <string name="shared_pref_file_name">com.theseuntaylor.mda.SHARED_PREF_FILE</string>
+    <string name="user_name_key">com.theseuntaylor.mda.user_name</string>
+    <string name="age_key">com.theseuntaylor.mda.age</string>
+    <string name="trusted_contact_name_key">com.theseuntaylor.mda.trusted_contact_name</string>
+    <string name="trusted_contact_number_key">com.theseuntaylor.mda.trusted_contact_number</string>
+    <string name="has_data_key">com.theseuntaylor.mda.has_data</string>
+    <string name="name">Name</string>
+    <string name="age">Age</string>
+
 </resources>
