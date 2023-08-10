@@ -20,8 +20,6 @@ class Accelerometer(context: Context) {
     private var sensorEventListener: SensorEventListener
     private var endTime: Long? = null
 
-    private val CSV_FILE_PATH = "./result.csv"
-
     interface Listener {
         fun onTranslation(tx: Float, ty: Float, tz: Float)
     }
@@ -75,41 +73,6 @@ class Accelerometer(context: Context) {
 
     fun unregister() {
         sensorManager.unregisterListener(sensorEventListener)
-    }
-
-    private fun writeToCsv(tx: Float, ty: Float, tz: Float, acceleration: Double) {
-        val file = File(CSV_FILE_PATH)
-        try {
-            // create FileWriter object with file as parameter
-            val outputfile = FileWriter(file)
-
-            // create CSVWriter object filewriter object as parameter
-            val writer = CSVWriter(
-                outputfile, CSVWriter.DEFAULT_SEPARATOR,
-                CSVWriter.NO_QUOTE_CHARACTER,
-                CSVWriter.DEFAULT_ESCAPE_CHARACTER,
-                CSVWriter.DEFAULT_LINE_END
-            )
-
-            // adding header to csv
-            val header = arrayOf("Time", "tx", "ty", "tz", "acceleration")
-            writer.writeNext(header)
-            while (System.currentTimeMillis() < endTime!!) {
-                val data = arrayOf(
-                    Calendar.getInstance().time.toString(),
-                    tx.toString(),
-                    ty.toString(),
-                    tz.toString(),
-                    acceleration.toString()
-                )
-                writer.writeNext(data)
-            }
-
-            // closing writer connection
-            writer.close()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
 
 }

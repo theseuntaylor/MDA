@@ -62,7 +62,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="10dp"
-            android:text="@string/set_up_personal_information"
+            android:text="@string/delete_all_data"
             android:textSize="20sp" />
     </androidx.cardview.widget.CardView>
 

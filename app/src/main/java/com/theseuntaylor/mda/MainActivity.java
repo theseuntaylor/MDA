@@ -1,21 +1,21 @@
 package com.theseuntaylor.mda;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -24,7 +24,6 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.app.ActivityCompat;
-import androidx.transition.Transition;
 
 import com.google.android.gms.location.ActivityRecognition;
 import com.google.android.gms.location.ActivityTransition;
@@ -50,15 +49,18 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton imageButton;
     private TextView currentTransition;
     private Viewport viewport;
-
+    private ImageView image;
     private Spinner spinner;
     private Accelerometer accelerometer;
+
+    private static final float THRESHOLD = 4.0f;
+    private static final long DELAY_MILLIS = 4000;
 
     private List<ActivityTransition> activityTransitionList;
 
     LineGraphSeries<DataPoint> series = new LineGraphSeries<>();
 
-    private final Handler handler = new Handler();
+    private final Handler handler = new Handler(Looper.getMainLooper());
     Runnable runnable;
 
     long startTime = System.currentTimeMillis();
@@ -66,16 +68,19 @@ public class MainActivity extends AppCompatActivity {
     private boolean isPaused = false;
     String actionName = "";
 
-    private final boolean runningQOrLater = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q);
-
     private TransitionsReceiver mTransitionReceiver;
 
     private boolean activityTrackingEnabled;
 
-    private Utils utils = new Utils();
+    private final Utils utils = new Utils();
 
     private final String TRANSITIONS_RECEIVER_ACTION = "com.theseuntaylor.mda_TRANSITIONS_RECEIVER_ACTION";
-    private PendingIntent mActivityTransitionsPendingIntent;
+
+    PendingIntent mActivityTransitionsPendingIntent;
+
+    private boolean fallDetected = false;
+    private boolean spikeDetected = false;
+    private boolean isListenerStarted = false;
 
     private static String toActivityString(int activity) {
         switch (activity) {
@@ -90,24 +95,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private static String toTransitionType(int transitionType) {
-        switch (transitionType) {
-            case ActivityTransition.ACTIVITY_TRANSITION_ENTER:
-                return "ENTER";
-            case ActivityTransition.ACTIVITY_TRANSITION_EXIT:
-                return "EXIT";
-            default:
-                return "UNKNOWN";
-        }
-    }
-
-    @RequiresApi(api = Build.VERSION_CODES.S)
+    @RequiresApi(api = 34)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         imageButton = findViewById(R.id.button_toggleIsPaused);
+        image = findViewById(R.id.button_toggleFallDetection);
         currentTransition = findViewById(R.id.tv_currentTransition);
         spinner = findViewById(R.id.spinner_actions);
 
@@ -124,16 +119,19 @@ public class MainActivity extends AppCompatActivity {
 
         Intent intent = new Intent(TRANSITIONS_RECEIVER_ACTION);
 
+        int TRANSITION_PENDING_INTENT_REQUEST_CODE = 200;
         mActivityTransitionsPendingIntent = PendingIntent
+
                 .getBroadcast(
                         MainActivity.this,
-                        100, intent,
-                        PendingIntent.FLAG_MUTABLE
+                        TRANSITION_PENDING_INTENT_REQUEST_CODE, intent,
+                        PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
                 );
 
         mTransitionReceiver = new TransitionsReceiver();
 
         if (activityRecognitionPermissionApproved()) {
+            requestActivityUpdates();
             enableActivityTransitions();
         } else {
             ActivityCompat
@@ -148,7 +146,9 @@ public class MainActivity extends AppCompatActivity {
 
         accelerometer = new Accelerometer(this);
 
-        handleSpinnerSelection();
+        createAccelerometerListener();
+
+        // handleSpinnerSelection();
 
         GraphView graphView = findViewById(R.id.graphView_xAxis);
         viewport = graphView.getViewport();
@@ -158,8 +158,27 @@ public class MainActivity extends AppCompatActivity {
 
         graphView.addSeries(series);
 
+        // turn to toggle.
+        image.setOnClickListener(view -> {
+            toggleListener();
+        });
     }
 
+    private void toggleListener() {
+        if (isListenerStarted) {
+            accelerometer.unregister();
+            image.setImageDrawable(AppCompatResources.getDrawable(this, R.drawable.img_background_on));
+        } else {
+            accelerometer.register();
+            image.setImageDrawable(AppCompatResources.getDrawable(this, R.drawable.img_background_off));
+        }
+        isListenerStarted = !isListenerStarted;
+    }
+
+    private void goToFeedback() {
+        Intent intent = new Intent(this, FeedbackActivity.class);
+        startActivity(intent);
+    }
 
     @Override
     protected void onStart() {
@@ -168,13 +187,37 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private boolean activityRecognitionPermissionApproved() {
-        if (runningQOrLater) {
-            return PackageManager.PERMISSION_GRANTED == ActivityCompat.checkSelfPermission(
-                    this, Manifest.permission.ACTIVITY_RECOGNITION
-            );
-        } else {
-            return true;
+        return PackageManager.PERMISSION_GRANTED == ActivityCompat.checkSelfPermission(
+                this, Manifest.permission.ACTIVITY_RECOGNITION
+        );
+    }
+
+    private void requestActivityUpdates() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat
+                    .requestPermissions(
+                            this,
+                            new String[]{Manifest.permission.ACTIVITY_RECOGNITION},
+                            45
+                    );
+            return;
         }
+
+        Task<Void> task = ActivityRecognition
+                .getClient(this)
+                .requestActivityUpdates(
+                        1000,
+                        mActivityTransitionsPendingIntent
+                );
+
+        task.addOnSuccessListener(
+                res -> {
+                    activityTrackingEnabled = true;
+                    currentTransition.setText(getString(R.string.activityTransitionsEnabled));
+                }
+        ).addOnFailureListener(
+                e -> currentTransition.setText(getString(R.string.errorEnablingActivityTransitions))
+        );
     }
 
     private void enableActivityTransitions() {
@@ -190,7 +233,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        Task<Void> task = ActivityRecognition.getClient(this)
+        Task<Void> task = ActivityRecognition
+                .getClient(this)
                 .requestActivityTransitionUpdates(
                         request,
                         mActivityTransitionsPendingIntent
@@ -202,10 +246,9 @@ public class MainActivity extends AppCompatActivity {
                     currentTransition.setText(getString(R.string.activityTransitionsEnabled));
                 }
         ).addOnFailureListener(
-                e -> currentTransition.setText(getString(R.string.errorEnablingActivityTransitions))
-        );
-    }
+                e -> currentTransition.setText(getString(R.string.errorEnablingActivityTransitions)));
 
+    }
 
     private void disableActivityTransitions() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
@@ -239,32 +282,32 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    void handleSpinnerSelection() {
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                actionName = spinner.getSelectedItem().toString();
-                Log.e("Spinner Selection", actionName);
-                actionName = actionName.replace(' ', '-');
-
-                runnable = new Runnable() {
-                    @Override
-                    public void run() {
-                        createAccelerometerListener();
-                        handler.postDelayed(this, 1000); // Update every 1 second
-                    }
-                };
-
-                handler.post(runnable);
-
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-
-            }
-        });
-    }
+//    void handleSpinnerSelection() {
+//        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+//            @Override
+//            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+//                actionName = spinner.getSelectedItem().toString();
+//                Log.e("Spinner Selection", actionName);
+//                actionName = actionName.replace(' ', '-');
+//
+//                runnable = new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        createAccelerometerListener();
+//                        handler.postDelayed(this, 1000); // Update every 1 second
+//                    }
+//                };
+//
+//                handler.post(runnable);
+//
+//            }
+//
+//            @Override
+//            public void onNothingSelected(AdapterView<?> parent) {
+//
+//            }
+//        });
+//    }
 
     private double calculateAcceleration(float tx, float ty, float tz) {
         float tx_squared = tx * tx;
@@ -277,18 +320,31 @@ public class MainActivity extends AppCompatActivity {
     private void createAccelerometerListener() {
         accelerometer.setListener((tx, ty, tz) -> {
 
-            double timeInSeconds = (System.currentTimeMillis() - startTime) / 1000.0;
+            // double timeInSeconds = (System.currentTimeMillis() - startTime) / 1000.0;
 
-            series.appendData(new DataPoint(timeInSeconds, calculateAcceleration(tx, ty, tz)), true, 1000);
+            if (calculateAcceleration(tx, ty, tz) > THRESHOLD) {
+                spikeDetected = true;
+            }
 
-            // Set fixed viewport bounds on X-axis
-            viewport.setMinX(timeInSeconds - 30); // Display the last 30 seconds
-            viewport.setMaxX(timeInSeconds);
+            handler.removeCallbacksAndMessages(null);
 
+            handler.postDelayed(() -> {
+                if (!spikeDetected && !fallDetected) {
+                    fallDetected = true;
+                    goToFeedback();
+                }
+                spikeDetected = false;
+            }, DELAY_MILLIS);
 
-            String content = "\n" + timeInSeconds + ": " + tx + ", " + ty + ", " + tz;
-            writeToFile(content, actionName);
-
+//            series.appendData(new DataPoint(timeInSeconds, calculateAcceleration(tx, ty, tz)), true, 1000);
+//
+//            // Set fixed viewport bounds on X-axis
+//            viewport.setMinX(timeInSeconds - 30); // Display the last 30 seconds
+//            viewport.setMaxX(timeInSeconds);
+//
+//
+//            String content = "\n" + timeInSeconds + ": " + tx + ", " + ty + ", " + tz;
+//            writeToFile(content, actionName);
 
         });
     }
@@ -296,7 +352,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-
+        enableActivityTransitions();
         accelerometer.register();
     }
 
@@ -315,10 +371,11 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        if (activityRecognitionPermissionApproved() & !activityTrackingEnabled)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                enableActivityTransitions();
-            }
+        if (activityRecognitionPermissionApproved() & !activityTrackingEnabled) {
+            // startService(new Intent(this, DetectedActivityService.class));
+            requestActivityUpdates();
+            enableActivityTransitions();
+        }
         super.onActivityResult(requestCode, resultCode, data);
     }
 
@@ -350,7 +407,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
 
-            Log.d("TAG", "onReceive(): " + intent);
+            Log.d("TAG", "onReceive(): " + intent.getAction());
 
             if (!TextUtils.equals(TRANSITIONS_RECEIVER_ACTION, intent.getAction())) {
                 return;
@@ -364,16 +421,24 @@ public class MainActivity extends AppCompatActivity {
                 assert result != null;
                 for (ActivityTransitionEvent event : result.getTransitionEvents()) {
 
-                    String info = "Transition: " + toActivityString(event.getActivityType()) +
-                            " (" + toTransitionType(event.getTransitionType()) + ")" + "   " +
+                    String info = "Transition: \n" + toActivityString(event.getActivityType()) + " " +
                             new SimpleDateFormat("HH:mm:ss", Locale.US).format(new Date());
 
+                    Log.e("TRANSITION TAG", info);
                     currentTransition.setText(info);
-                    // have a function that changes the textview of the screen for instance to the action.
-                    // printToScreen(info);
                 }
             }
         }
+
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        String SUPPORTED_ACTIVITY_KEY = "activity_key";
+        if (intent.hasExtra(SUPPORTED_ACTIVITY_KEY)) {
+            currentTransition.setText(intent.getSerializableExtra(SUPPORTED_ACTIVITY_KEY).toString());
+            Log.e("OnNewIntent", intent.getSerializableExtra(SUPPORTED_ACTIVITY_KEY).toString());
+        }
     }
 }
-

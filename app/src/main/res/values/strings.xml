@@ -31,5 +31,17 @@
     <string name="has_data_key">com.theseuntaylor.mda.has_data</string>
     <string name="name">Name</string>
     <string name="age">Age</string>
+    <string name="delete_all_data">Delete All Data</string>
+    <string name="phoneNumber">Phone Number</string>
+    <string name="phone_number">+441234567891</string>
+    <string name="save_trusted_contact">Save Trusted Contact</string>
+    <string name="please_note_that_you_cannot_change_the_information_of_your_trusted_contact_here_you_have_to_delete_it_in_the_settings_page">Please note that you cannot change the information of your trusted contact here! You have to delete it in the settings page.</string>
+    <string name="delete_information">Delete Information</string>
+    <string name="are_you_sure">"Are you sure you want to delete your information and that of your trusted contact? "</string>
+    <string name="activity_update_remove_success">Removal of Service Successful</string>
+    <string name="activity_update_remove_failed">Removal of Service failed!</string>
+    <string name="dummy_activity">Walking (14:16:34)</string>
+    <string name="involved_in_fall">Detected Fall</string>
+    <string name="been_in_a_fall">Have you been in a fall?</string>
 
 </resources>

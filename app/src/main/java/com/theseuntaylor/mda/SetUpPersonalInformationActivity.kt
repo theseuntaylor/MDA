@@ -13,7 +13,7 @@ class SetUpPersonalInformationActivity : AppCompatActivity() {
 
     private lateinit var nameEditText: EditText
     private lateinit var ageEditText: EditText
-    private lateinit var button: Button
+    private lateinit var savePersonalInformationButton: Button
 
     private lateinit var sharedPreferences: SharedPreferences
 
@@ -23,7 +23,7 @@ class SetUpPersonalInformationActivity : AppCompatActivity() {
 
         nameEditText = findViewById(R.id.editText_userName)
         ageEditText = findViewById(R.id.editText_userAge)
-        button = findViewById(R.id.button_saveUserInformation)
+        savePersonalInformationButton = findViewById(R.id.button_saveUserInformation)
 
         sharedPreferences = this.getSharedPreferences(
             getString(R.string.shared_pref_file_name),
@@ -46,10 +46,10 @@ class SetUpPersonalInformationActivity : AppCompatActivity() {
                 setText(age)
             }
 
-            button.visibility = GONE
+            savePersonalInformationButton.visibility = GONE
         }
 
-        button.setOnClickListener {
+        savePersonalInformationButton.setOnClickListener {
             saveUserInformation(
                 name = nameEditText.text.toString(),
                 age = ageEditText.text.toString()
